@@ -1,0 +1,23 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# PyTorch cache
+*.pt
+*.pth
+
+# Editor files
+.vscode/
+.idea/
+
+# Data will be stored elsewhere
+data/

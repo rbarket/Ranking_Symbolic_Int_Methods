@@ -1,0 +1,26 @@
+tree:
+  branching_factor: 2    # n: branching factor
+  depth: 20              # k: tree depth
+
+model:
+  d_model: 40            # hidden dimension (n * k)
+  layers: 4              # number of transformer layers (LAYERS)
+  heads: 4               # number of attention heads (HEADS)
+  dim_feedforward: 128  # for transformerencoder
+
+training:
+  learning_rate: 0.01    # lr
+  batch_size: 256        # BATCH_SIZE
+  epochs: 5            # num_epochs
+  weight_decay: 1e-6      # weight decay for optimizer
+  log_interval: 25  # how often to log training progress
+
+device: "cuda"           # use 'cuda' if available, else fallback to 'cpu'
+
+data:
+  input_dir: "data/processed/ranking"
+  vocab_path: "data/vocab.json"
+  num_workers: 4
+
+paths:
+  save_dir: "/home/barketr/Desktop/TreeLSTM2/Journal Paper/Models/TreeTransformer/Regression"
