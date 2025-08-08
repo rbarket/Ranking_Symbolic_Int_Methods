@@ -20,6 +20,14 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     ds_nonelem = PrefixExpressionDataset(cfg, split='test_nonelem', sample_n=sample_n)
     ds_combined = ConcatDataset([ds_elem, ds_nonelem])
     
+    datasets = {
+        "elementary": ds_elem,
+        "nonelementary": ds_nonelem,
+        "combined": ds_combined
+    }
+    
+    print(type(ds_elem), type(ds_nonelem), type(ds_combined))
+    
     loader = DataLoader(
         ds_combined,
         batch_size=cfg.training.batch_size,
@@ -55,14 +63,27 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     model.eval()
     print(f"Loaded checkpoint from {checkpoint_path}")
     
-    # test the model
-    all_preds, _ = test_model( # don't need the loss 
-        model=model,
-        test_loader=loader,
-        device=device,
-        criterion=nn.MSELoss(reduction='none')  # Use the same loss as during training
-    ) 
+    for ds_name, ds in datasets.items():
+        print(f"Evaluating on dataset: {ds_name} with {len(ds)} examples")
+    
+        loader = DataLoader(
+            ds,
+            batch_size=cfg.training.batch_size,
+            shuffle=False,
+            num_workers=cfg.data.num_workers,
+            pin_memory=torch.cuda.is_available(),
+            collate_fn=collate_fn
+            )
+    
+        # test the model
+        all_preds, _ = test_model( # don't need the loss 
+            model=model,
+            test_loader=loader,
+            device=device,
+            criterion=nn.MSELoss(reduction='none')  # Use the same loss as during training
+            ) 
 
+    # Save results for only combined dataset (last item in for loop)
     all_preds = torch.cat(all_preds, dim=0)  # [N, num_labels]
     print(f"Inference complete: {all_preds.shape}")
 
