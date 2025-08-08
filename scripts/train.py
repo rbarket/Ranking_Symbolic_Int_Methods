@@ -22,7 +22,7 @@ def main():
     print(f"Detected num_labels = {num_labels}")
 
     # 3) Prepare DataLoaders
-    train_loader = get_dataloader(cfg, split="train", sample_n=100000) 
+    train_loader = get_dataloader(cfg, split=["train", "train_nonelem"], sample_n=10000) 
     val_loader   = get_dataloader(cfg, split="test")
 
     # 4) Load vocab and instantiate model
@@ -44,13 +44,15 @@ def main():
     print("weight decay:", cfg.training.weight_decay)
     optimizer = optim.Adam(model.parameters(), lr=cfg.training.learning_rate, weight_decay=float(cfg.training.weight_decay))
     total_steps = len(train_loader) * cfg.training.epochs
+    
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
     optimizer,
     max_lr=cfg.training.learning_rate,
     total_steps=total_steps,
     pct_start=0.1,
     anneal_strategy='cos'
-)
+    )
+    
     criterion = nn.MSELoss(reduction='none')
 
     # 6) Run full training loop (with checkpointing & early stopping)

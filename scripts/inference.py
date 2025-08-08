@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import ConcatDataset
 
 from src.utils.config import load_config
-from src.utils.io import load_vocab, load_precomputed_positions
+from src.utils.io import load_vocab
 from src.data.dataset import PrefixExpressionDataset, collate_fn
 from src.models.tree_transformer import TreeTransformer
 from src.training.evaluation import test_model
@@ -26,18 +26,6 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
         "combined": ds_combined
     }
     
-    print(type(ds_elem), type(ds_nonelem), type(ds_combined))
-    
-    loader = DataLoader(
-        ds_combined,
-        batch_size=cfg.training.batch_size,
-        shuffle=False,
-        num_workers=cfg.data.num_workers,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=collate_fn
-    )
-
-    # 3) Recreate your model architecture
     vocab = load_vocab(cfg)
     
     # infer num_labels from the first item
@@ -55,7 +43,7 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
         k=cfg.tree.depth
     ).to(device)
 
-    # 4) Load weights
+    # Load weights
     checkpoint = torch.load(checkpoint_path, map_location=device)
     # if you saved a full state dict:
     model = nn.DataParallel(model)
