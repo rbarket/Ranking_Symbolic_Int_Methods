@@ -1,10 +1,12 @@
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from src.utils.config import load_config
 from src.utils.io import load_vocab, load_precomputed_positions
 from src.data.dataset import PrefixExpressionDataset, collate_fn
 from src.models.tree_transformer import TreeTransformer
+from src.training.evaluation import test_model
 
 def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     # 1) Load config & device
@@ -22,12 +24,28 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
         pin_memory=torch.cuda.is_available(),
         collate_fn=collate_fn
     )
+    
+    # ds_nonelem = PrefixExpressionDataset(cfg, split="test_nonelem", sample_n=sample_n)
+    
+    loader = DataLoader(
+        ds,
+        batch_size=cfg.training.batch_size,
+        shuffle=False,
+        num_workers=cfg.data.num_workers,
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=collate_fn
+    )
 
+    print("label")
+    print(ds[0][2])  # Print first label for debugging
+    
     # 3) Recreate your model architecture
     vocab = load_vocab(cfg)
+    
     # infer num_labels from the first item
     dummy_labels = ds.data[0][2]
     num_labels = dummy_labels.shape[-1]
+    
     model = TreeTransformer(
         vocab_size=len(vocab),
         d_model=cfg.model.d_model,
@@ -42,19 +60,18 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     # 4) Load weights
     checkpoint = torch.load(checkpoint_path, map_location=device)
     # if you saved a full state dict:
+    model = nn.DataParallel(model)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
     print(f"Loaded checkpoint from {checkpoint_path}")
-
-    # 5) Inference loop
-    all_preds = []
-    with torch.no_grad():
-        for token_ids, pos_enc, token_mask, _, _ in loader:
-            token_ids = token_ids.to(device)
-            pos_enc   = pos_enc.to(device)
-            token_mask= token_mask.to(device)
-            logits = model(token_ids, pos_enc, token_mask)  # [B, num_labels]
-            all_preds.append(logits.cpu())
+    
+    # test the model
+    all_preds, _ = test_model( # don't need the loss 
+        model=model,
+        test_loader=loader,
+        device=device,
+        criterion=nn.MSELoss(reduction='none')  # Use the same loss as during training
+    ) 
 
     all_preds = torch.cat(all_preds, dim=0)  # [N, num_labels]
     print(f"Inference complete: {all_preds.shape}")

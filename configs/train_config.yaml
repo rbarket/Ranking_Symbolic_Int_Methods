@@ -18,7 +18,7 @@ training:
 device: "cuda"           # use 'cuda' if available, else fallback to 'cpu'
 
 data:
-  input_dir: "data/processed/ranking"
+  input_dir: "data/processed"
   vocab_path: "data/vocab.json"
   num_workers: 4
 

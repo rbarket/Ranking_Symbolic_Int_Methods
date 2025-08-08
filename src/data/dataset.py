@@ -12,11 +12,11 @@ def load_split(cfg, split: str = "train") -> pd.DataFrame:
     Load an entire dataset split (train/test) as a pandas DataFrame.
     """
     input_dir = Path(cfg.data.input_dir)
-    file_path = input_dir / f"{split}_data_reg.parquet"
+    file_path = input_dir / f"{split}_data.parquet"
     if not file_path.exists():
         raise FileNotFoundError(f"Could not find split file: {file_path}")
     return pd.read_parquet(file_path)
-
+#
 class PrefixExpressionDataset(Dataset):
     def __init__(self, cfg, split="train", sample_n: int = None):
         """

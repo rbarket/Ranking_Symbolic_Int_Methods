@@ -64,7 +64,7 @@ def test_model(
             with autocast():
                 preds = model(inputs, pos_enc, token_mask).squeeze()  # [B, L]
 
-            outputs_all.extend(preds.cpu().tolist())
+            outputs_all.append(preds.cpu())
 
             # — weighted masked MSE —
             loss_tensor = criterion(preds, labels)  # [B, L]
@@ -111,8 +111,8 @@ def test_model(
                     total_samples += 1
 
     # finalize metrics
-    avg_rank_loss = rank_sum / (rank_weight_sum + 1e-8)
-    total_loss    = avg_rank_loss
+    loss = rank_sum / (rank_weight_sum + 1e-8)
+    
 
     # print top-1 smallest-label accuracy
     if total_samples > 0:
@@ -121,4 +121,4 @@ def test_model(
     else:
         print("Test smallest-label accuracy: no valid samples to evaluate.")
 
-    return outputs_all, total_loss, avg_rank_loss
+    return outputs_all, loss

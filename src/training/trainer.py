@@ -91,8 +91,8 @@ def eval_epoch(
       - total_loss:    combined loss value
       - avg_rank_loss: average rank loss
     """
-    _, total_loss, avg_rank_loss = test_model(model, loader, device, criterion)
-    return total_loss, avg_rank_loss
+    _, loss = test_model(model, loader, device, criterion)
+    return loss
 
 
 def train(
@@ -129,10 +129,10 @@ def train(
         print(f"[train] epoch {epoch} avg rank loss = {train_loss:.4f}")
 
         # Validation
-        val_total, val_rank = eval_epoch(
+        loss = eval_epoch(
             model, val_loader, device, criterion
         )
-        print(f"[eval]  epoch {epoch} total loss = {val_total:.4f}, rank loss = {val_rank:.4f}")
+        print(f"[eval]  epoch {epoch} total loss = {loss:.4f}")
 
         # Scheduler step (works for Plateau or standard)
         if scheduler is not None:

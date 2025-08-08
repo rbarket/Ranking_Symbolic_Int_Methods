@@ -67,13 +67,13 @@ def main():
 
     # 7) Final evaluation on the test split
     print("\n== Final evaluation on test split ==")
-    outputs_all, total_loss, avg_rank_loss = test_model(
+    _, loss = test_model(
         trained_model,
         val_loader,
         device,
         criterion
     )
-    print(f"Test total loss: {total_loss:.4f}, avg rank loss: {avg_rank_loss:.4f}")
+    print(f"Test total loss: {loss:.4f}")
 
 if __name__ == "__main__":
     main()
