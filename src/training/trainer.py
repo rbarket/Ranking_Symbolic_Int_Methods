@@ -108,7 +108,7 @@ def train(
     """
     Full training loop over epochs with checkpointing and early stopping.
     """
-    best_val = float("inf")
+    best_loss = float("inf")
     epochs_no_improve = 0
 
     # Prepare checkpoint paths
@@ -143,8 +143,8 @@ def train(
 
         # Checkpoint & Early stopping
         is_best = False
-        if val_total < best_val:
-            best_val = val_total
+        if loss < best_loss:
+            best_loss = loss
             epochs_no_improve = 0
             is_best = True
         else:
@@ -156,7 +156,7 @@ def train(
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
-            "best_val_loss": best_val,
+            "best_val_loss": best_loss,
             "epochs_no_improve": epochs_no_improve
         }, ckpt_path)
 

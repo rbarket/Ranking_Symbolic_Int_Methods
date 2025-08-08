@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset
 
 from src.utils.config import load_config
 from src.utils.io import load_vocab, load_precomputed_positions
@@ -15,20 +16,12 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     print(f"Using device: {device}")
 
     # 2) Build dataset & loader
-    ds = PrefixExpressionDataset(cfg, split=split, sample_n=sample_n)
-    loader = DataLoader(
-        ds,
-        batch_size=cfg.training.batch_size,
-        shuffle=False,
-        num_workers=cfg.data.num_workers,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=collate_fn
-    )
-    
-    # ds_nonelem = PrefixExpressionDataset(cfg, split="test_nonelem", sample_n=sample_n)
+    ds_elem = PrefixExpressionDataset(cfg, split='test', sample_n=sample_n)
+    ds_nonelem = PrefixExpressionDataset(cfg, split='test_nonelem', sample_n=sample_n)
+    ds_combined = ConcatDataset([ds_elem, ds_nonelem])
     
     loader = DataLoader(
-        ds,
+        ds_combined,
         batch_size=cfg.training.batch_size,
         shuffle=False,
         num_workers=cfg.data.num_workers,
@@ -36,14 +29,11 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
         collate_fn=collate_fn
     )
 
-    print("label")
-    print(ds[0][2])  # Print first label for debugging
-    
     # 3) Recreate your model architecture
     vocab = load_vocab(cfg)
     
     # infer num_labels from the first item
-    dummy_labels = ds.data[0][2]
+    dummy_labels = ds_elem.data[0][2]
     num_labels = dummy_labels.shape[-1]
     
     model = TreeTransformer(
