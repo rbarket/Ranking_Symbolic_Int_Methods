@@ -94,6 +94,31 @@ def eval_epoch(
     _, loss = test_model(model, loader, device, criterion)
     return loss
 
+def save_checkpoint(path, model, optimizer, scheduler, epoch, best_val_loss, epochs_no_improve):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    payload = {
+        "epoch": epoch,
+        "model_state_dict": (model.module.state_dict() if hasattr(model, "module") else model.state_dict()),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
+        "best_val_loss": best_val_loss,
+        "epochs_no_improve": epochs_no_improve,
+    }
+    tmp = path + ".tmp"
+    torch.save(payload, tmp)
+    os.replace(tmp, path)  # atomic on most OSes
+
+def load_checkpoint(path, model, optimizer=None, scheduler=None, map_location="cpu"):
+    ckpt = torch.load(path, map_location=map_location)
+    (model.module if hasattr(model, "module") else model).load_state_dict(ckpt["model_state_dict"])
+    if optimizer is not None and "optimizer_state_dict" in ckpt:
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+    if scheduler is not None and ckpt.get("scheduler_state_dict") is not None:
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+    start_epoch = ckpt.get("epoch", 0) + 1
+    best_loss = ckpt.get("best_val_loss", float("inf"))
+    epochs_no_improve = ckpt.get("epochs_no_improve", 0)
+    return start_epoch, best_loss, epochs_no_improve
 
 def train(
     cfg,
@@ -103,71 +128,75 @@ def train(
     optimizer: torch.optim.Optimizer,
     scheduler,
     criterion,
-    device: torch.device
+    device: torch.device,
+    resume_from: str | None = None,
 ):
     """
     Full training loop over epochs with checkpointing and early stopping.
     """
-    best_loss = float("inf")
-    epochs_no_improve = 0
-
-    # Prepare checkpoint paths
+    # checkpoint paths
     save_dir = cfg.paths.save_dir
     os.makedirs(save_dir, exist_ok=True)
     name = getattr(cfg, "experiment_name", "model")
     ckpt_path = os.path.join(save_dir, f"{name}.pth")
     best_path = os.path.join(save_dir, f"{name}_best.pth")
 
-    for epoch in range(1, cfg.training.epochs + 1):
+    # defaults
+    best_loss = float("inf")
+    epochs_no_improve = 0
+    start_epoch = 1
+
+    # optional resume
+    if resume_from is not None and os.path.exists(resume_from):
+        start_epoch, best_loss, epochs_no_improve = load_checkpoint(
+            resume_from, model, optimizer, scheduler, map_location=device
+        )
+        print(f"[resume] loaded {resume_from} -> start_epoch={start_epoch}, best_loss={best_loss:.4f}")
+    else:
+        print("no checkpoint found, starting from scratch")
+
+    for epoch in range(start_epoch, cfg.training.epochs + 1):
         print(f"\n=== Epoch {epoch}/{cfg.training.epochs} ===")
 
-        # Training
+        # --- Train ---
         train_loss = train_epoch(
             model, train_loader, optimizer, device,
             log_interval=cfg.training.log_interval
         )
-        print(f"[train] epoch {epoch} avg rank loss = {train_loss:.4f}")
+        print(f"[train] epoch {epoch} avg loss = {train_loss:.4f}")
 
-        # Validation
-        loss = eval_epoch(
-            model, val_loader, device, criterion
-        )
-        print(f"[eval]  epoch {epoch} total loss = {loss:.4f}")
+        # --- Validate ---
+        val_loss = eval_epoch(model, val_loader, device, criterion)
+        print(f"[eval]  epoch {epoch} val loss = {val_loss:.4f}")
 
-        # Scheduler step (works for Plateau or standard)
-        if scheduler is not None:
-            try:
-                scheduler.step()
-            except TypeError:
-                scheduler.step()
+        # --- Scheduler step ---
+        scheduler.step()
 
-        # Checkpoint & Early stopping
-        is_best = False
-        if loss < best_loss:
-            best_loss = loss
+        # --- Track best / early stopping ---
+        is_best = val_loss < best_loss
+        if is_best:
+            best_loss = val_loss
             epochs_no_improve = 0
-            is_best = True
         else:
             epochs_no_improve += 1
 
-        # Save checkpoint
-        torch.save({
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
-            "best_val_loss": best_loss,
-            "epochs_no_improve": epochs_no_improve
-        }, ckpt_path)
+        # --- Save "last" ---
+        save_checkpoint(
+            ckpt_path, model, optimizer, scheduler,
+            epoch=epoch, best_val_loss=best_loss, epochs_no_improve=epochs_no_improve
+        )
 
+        # --- Save "best" ---
         if is_best:
-            torch.save(torch.load(ckpt_path), best_path)
-            print(f"[checkpoint] New best model saved to {best_path}")
+            # copy last to best (device-agnostic)
+            torch.save(torch.load(ckpt_path, map_location="cpu"), best_path)
+            print(f"[checkpoint] new best -> {best_path}")
 
-        # Early stop if no improvement
+        # --- Early stop ---
         patience = getattr(cfg.training, "early_stop_patience", 10)
         if epochs_no_improve >= patience:
             print(f"[early stop] stopping after {epochs_no_improve} epochs without improvement.")
             break
 
     return model
+

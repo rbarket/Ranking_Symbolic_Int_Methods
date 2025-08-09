@@ -11,9 +11,10 @@ model:
 training:
   learning_rate: 0.01    # lr
   batch_size: 256        # BATCH_SIZE
-  epochs: 5            # num_epochs
+  epochs: 10            # num_epochs
   weight_decay: 1e-6      # weight decay for optimizer
   log_interval: 25  # how often to log training progress
+  resume_from: null   # resume training from a checkpoint path, or null to start fresh
 
 device: "cuda"           # use 'cuda' if available, else fallback to 'cpu'
 
