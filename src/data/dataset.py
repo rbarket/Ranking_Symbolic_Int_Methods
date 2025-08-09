@@ -12,62 +12,59 @@ def load_split(cfg, split: str = "train") -> pd.DataFrame:
     Load an entire dataset split (train/test) as a pandas DataFrame.
     """
     input_dir = Path(cfg.data.input_dir)
-    file_path = input_dir / f"{split}_data.parquet"
+    file_path = input_dir / f"{split}_data_new.parquet"
     if not file_path.exists():
         raise FileNotFoundError(f"Could not find split file: {file_path}")
     return pd.read_parquet(file_path)
-#
+
+
 class PrefixExpressionDataset(Dataset):
-    def __init__(self, cfg, split="train", sample_n: int = None):
-        """
-        Args:
-          cfg: DotDict config
-          split: "train"/"test"/etc.
-          sample_n: if not None and split=="train", randomly sample this many rows
-        """
-        # 1. Load full DataFrame
-        df = load_split(cfg, split)
+    def __init__(self, cfg, split="train", sample_n=None):
+        self.df_all = load_split(cfg, split)  # load everything once
+        self.cfg = cfg
+        self.split = split
+        self.sample_n = sample_n
+        self.set_data_type(None)  # default: no filter
 
-        # 2. Optional subsampling BEFORE any token/positional work
-        if split == "train" and sample_n is not None:
-            df = df.sample(n=min(sample_n, len(df)), random_state=1998)
+    def set_data_type(self, data_type):
+        """Change data type filter and rebuild `self.data` without reloading file"""
+        if data_type is None:
+            df = self.df_all
+        else:
+            df = self.df_all[self.df_all["source"] == data_type]
 
-        # 3. Load vocab & positional encodings
-        self.vocab = load_vocab(cfg)
-        self.positions = load_precomputed_positions(cfg)
+        if self.split == "train" and self.sample_n is not None:
+            df = df.sample(n=min(self.sample_n, len(df)), random_state=1998)
 
-        # 4. Params
-        self.n = cfg.tree.branching_factor
-        self.k = cfg.tree.depth
+        self._build_data(df)
 
-        # 5. Extract expressions, labels, masks
+    def _build_data(self, df):
+        self.vocab = load_vocab(self.cfg)
+        self.positions = load_precomputed_positions(self.cfg)
+        self.n = self.cfg.tree.branching_factor
+        self.k = self.cfg.tree.depth
+
         expressions = df["prefix"].tolist()
-        labels_raw   = df["label"].tolist()
-        masks_raw    = [[l != -1 for l in lbls] for lbls in labels_raw]
+        labels_raw  = df["label"].tolist()
+        masks_raw   = [[l != -1 for l in lbls] for lbls in labels_raw]
 
-        # 6. Build the data tuples once, now on the (possibly smaller) DataFrame
         self.data = []
+        vocab_get = self.vocab.get
+        positions = self.positions
+        k = self.k
+        append_data = self.data.append
+
         for expr, label_list, mask_list in zip(expressions, labels_raw, masks_raw):
-            # Token IDs + tree paths
             tokens, path_list = get_prefix_data_with_paths(expr)
-            token_ids = torch.tensor(
-                [ self.vocab.get(tok, 1) for tok in tokens ],
-                dtype=torch.long
-            )
-
-            # Positional encodings per token
-            pos_encs = []
-            for path in path_list:
-                level = min(len(path), self.k)
-                idx   = path_to_index(path[:level])
-                pos_encs.append(self.positions[level][idx])
-            pos_tensor = torch.stack(pos_encs)  # [T, d_model]
-
-            # Labels & mask tensors
+            token_ids = torch.tensor([vocab_get(tok, 1) for tok in tokens], dtype=torch.long)
+            # for each token, get the precomputed position encoding based on its path
+            pos_tensor = torch.stack([
+                positions[min(len(path), k)][path_to_index(path[:min(len(path), k)])]
+                for path in path_list
+            ])
             label_tensor = torch.tensor(label_list, dtype=torch.float32)
-            mask_tensor  = torch.tensor(mask_list,  dtype=torch.bool)
-
-            self.data.append((token_ids, pos_tensor, label_tensor, mask_tensor))
+            mask_tensor  = torch.tensor(mask_list, dtype=torch.bool)
+            append_data((token_ids, pos_tensor, label_tensor, mask_tensor))
 
     def __len__(self):
         return len(self.data)

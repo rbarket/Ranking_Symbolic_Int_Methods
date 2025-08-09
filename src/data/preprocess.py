@@ -139,17 +139,24 @@ test_data_nonelem = [example for sublist in data_list_test_nonelem for example i
 train_data = [sublist[:3] + sublist[4:] if len(sublist) == 5 else sublist for sublist in train_data]
 test_data = [sublist[:3] + sublist[4:] if len(sublist) == 5 else sublist for sublist in test_data]
 
+# Merge elem and nonelem lists
+
 df_train = pd.DataFrame(train_data, columns=['integrand', 'prefix', 'integral', 'label_original'])
 df_test = pd.DataFrame(test_data, columns=['integrand', 'prefix', 'integral', 'label_original'])
+df_train['source'] = 'elementary'
+df_test['source'] = 'elementary'
+print("train length:", len(df_train))
 df_nonelem_train = pd.DataFrame(train_data_nonelem, columns=['integrand', 'prefix', 'integral', 'label_original'])
 df_nonelem_test = pd.DataFrame(test_data_nonelem, columns=['integrand', 'prefix', 'integral', 'label_original'])
+df_nonelem_train['source'] = 'nonelementary'
+df_nonelem_test['source'] = 'nonelementary'
+df_train = pd.concat([df_train, df_nonelem_train], ignore_index=True)
+df_test = pd.concat([df_test, df_nonelem_test], ignore_index=True)
+print("train length after merge:", len(df_train))
 
-print("Removing lookup")
 # Remove label lookup
 df_train['label_original'] = df_train['label_original'].apply(lambda arr: np.delete(arr, 10))
 df_test['label_original'] = df_test['label_original'].apply(lambda arr: np.delete(arr, 10))
-df_nonelem_train['label_original'] = df_nonelem_train['label_original'].apply(lambda arr: np.delete(arr, 10))
-df_nonelem_test['label_original'] = df_nonelem_test['label_original'].apply(lambda arr: np.delete(arr, 10))
 print("Removed lookup")
 
 # replace all integers in prefix with a CONST. Remove duplicates after this substitution
@@ -158,43 +165,26 @@ df_train["prefix"] = df_train["prefix"].transform(lambda k: tuple(k)) # transfor
 df_train.drop_duplicates(subset='prefix', inplace=True)
 df_train['prefix'] = df_train['prefix'].apply(list)
 
-df_nonelem_train['prefix'] = df_nonelem_train['prefix'].apply(replace_int_with_C)
-df_nonelem_train["prefix"] = df_nonelem_train["prefix"].transform(lambda k: tuple(k))  # transforming to tuple is much faster operation
-df_nonelem_train.drop_duplicates(subset='prefix', inplace=True)
-df_nonelem_train['prefix'] = df_nonelem_train['prefix'].apply(list)
-
 df_test['prefix'] = df_test['prefix'].apply(replace_int_with_C)
-df_nonelem_test['prefix'] = df_nonelem_test['prefix'].apply(replace_int_with_C)
 
 # Remove unspported expressions
 df_train = df_train[~ df_train['integrand'].apply(contains_unsupported_expressions)]
 df_test = df_test[~ df_test['integrand'].apply(contains_unsupported_expressions)]
-df_nonelem_train = df_nonelem_train[~ df_nonelem_train['integrand'].apply(contains_unsupported_expressions)]
-df_nonelem_test = df_nonelem_test[~ df_nonelem_test['integrand'].apply(contains_unsupported_expressions)]
 
 # Get a list of invalid expressions, remove them since we cant deal with them
 errors_train = find_invalid_expressions(df_train['prefix'])
 errors_test = find_invalid_expressions(df_test['prefix'])
-errors_train_nonelem = find_invalid_expressions(df_nonelem_train['prefix'])
-errors_test_nonelem = find_invalid_expressions(df_nonelem_test['prefix'])
-
 
 df_train = df_train[~ df_train['prefix'].isin(errors_train)]
 df_test = df_test[~ df_test['prefix'].isin(errors_test)]
-df_nonelem_train = df_nonelem_train[~ df_nonelem_train['prefix'].isin(errors_train_nonelem)]
-df_nonelem_test = df_nonelem_test[~ df_nonelem_test['prefix'].isin(errors_test_nonelem)]
 
 # Add a CLS token to the beginning of each prefix (from BERT paper)
 df_train['prefix'] = df_train['prefix'].apply(lambda x: ['[CLS]'] + x)
 df_test['prefix'] = df_test['prefix'].apply(lambda x: ['[CLS]'] + x)
-df_nonelem_train['prefix'] = df_nonelem_train['prefix'].apply(lambda x: ['[CLS]'] + x)
-df_nonelem_test['prefix'] = df_nonelem_test['prefix'].apply(lambda x: ['[CLS]'] + x)
 
 # scale labels to [0,1] range
 df_train['label'] = df_train['label_original'].apply(min_max_scale)
 df_test['label'] = df_test['label_original'].apply(min_max_scale)
-df_nonelem_train['label'] = df_nonelem_train['label_original'].apply(min_max_scale)
-df_nonelem_test['label'] = df_nonelem_test['label_original'].apply(min_max_scale)
 
 # save to parquet
 # Make sure to use __file__ to get the location of the script, not the working directory!
@@ -203,13 +193,8 @@ processed_dir.mkdir(parents=True, exist_ok=True)
 
 table_train = pyarrow.Table.from_pandas(df_train)
 table_test = pyarrow.Table.from_pandas(df_test)
-table_nonelem_train = pyarrow.Table.from_pandas(df_nonelem_train)
-table_nonelem_test = pyarrow.Table.from_pandas(df_nonelem_test)
 
-pq.write_table(table_train, processed_dir / "train_data.parquet")
-pq.write_table(table_test, processed_dir / "test_data.parquet")
-pq.write_table(table_nonelem_train, processed_dir / "train_nonelem_data.parquet")
-pq.write_table(table_nonelem_test, processed_dir / "test_nonelem_data.parquet")
-
+pq.write_table(table_train, processed_dir / "train_data_new.parquet")
+pq.write_table(table_test, processed_dir / "test_data_new.parquet")
 print("processed data")
   

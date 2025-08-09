@@ -16,20 +16,12 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     print(f"Using device: {device}")
 
     # 2) Build dataset & loader
-    ds_elem = PrefixExpressionDataset(cfg, split='test', sample_n=sample_n)
-    ds_nonelem = PrefixExpressionDataset(cfg, split='test_nonelem', sample_n=sample_n)
-    ds_combined = ConcatDataset([ds_elem, ds_nonelem])
-    
-    datasets = {
-        "elementary": ds_elem,
-        "nonelementary": ds_nonelem,
-        "combined": ds_combined
-    }
+    ds = PrefixExpressionDataset(cfg, split='test', sample_n=sample_n)
     
     vocab = load_vocab(cfg)
     
     # infer num_labels from the first item
-    dummy_labels = ds_elem.data[0][2]
+    dummy_labels = ds.data[0][2]
     num_labels = dummy_labels.shape[-1]
     
     model = TreeTransformer(
@@ -51,25 +43,25 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     model.eval()
     print(f"Loaded checkpoint from {checkpoint_path}")
     
-    for ds_name, ds in datasets.items():
-        print(f"Evaluating on dataset: {ds_name} with {len(ds)} examples")
-    
-        loader = DataLoader(
-            ds,
-            batch_size=cfg.training.batch_size,
-            shuffle=False,
-            num_workers=cfg.data.num_workers,
-            pin_memory=torch.cuda.is_available(),
-            collate_fn=collate_fn
-            )
-    
+    loader = DataLoader(
+        ds,
+        batch_size=cfg.training.batch_size,
+        shuffle=False,
+        num_workers=cfg.data.num_workers,
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=collate_fn
+        )
+
+    for source in ["elementary", "nonelementary", None]: # None means no filtering
+        ds.set_data_type(source)
+        print(f"Running inference on {source or 'combined'} data...")
         # test the model
         all_preds, _ = test_model( # don't need the loss 
             model=model,
             test_loader=loader,
             device=device,
             criterion=nn.MSELoss(reduction='none')  # Use the same loss as during training
-            ) 
+            )
 
     # Save results for only combined dataset (last item in for loop)
     all_preds = torch.cat(all_preds, dim=0)  # [N, num_labels]

@@ -22,7 +22,7 @@ def main():
     print(f"Detected num_labels = {num_labels}")
 
     # 3) Prepare DataLoaders
-    train_loader = get_dataloader(cfg, split=["train", "train_nonelem"], sample_n=10000) 
+    train_loader = get_dataloader(cfg, split="train", sample_n=10000) 
     val_loader   = get_dataloader(cfg, split="test")
 
     # 4) Load vocab and instantiate model

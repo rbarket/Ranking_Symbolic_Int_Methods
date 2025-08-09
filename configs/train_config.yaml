@@ -23,4 +23,4 @@ data:
   num_workers: 4
 
 paths:
-  save_dir: "/home/barketr/Desktop/TreeLSTM2/Journal Paper/Models/TreeTransformer/Regression"
+  save_dir: "models/ranking/"
