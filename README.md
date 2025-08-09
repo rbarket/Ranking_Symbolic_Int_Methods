@@ -1,5 +1,5 @@
 # Tree-Based Deep learning for Ranking Symbolic Integration Algorithms
-Pytorch implementation of Tree Transformers to Rank Symbolic Integration Algorithms in Maple
+Pytorch implementation of Tree-Based Deep Learning to Rank Symbolic Integration Algorithms in Maple
 
 ## Data
 The preprocessed data is available on Zenodo, ready to use right away for machine learning training. Download the data here: [Zenodo](https://zenodo.org/records/16752399). It is split between train and test, and furthermore between elementary and non-elementary expressions. We train on a mix of both, but the post-training analysis can be done split if you wish to see the results between elementary and non-elementary expressions. Note that for the tree tranformer, we precomputed the positional encodings to significantly save time, and is saved in Zenodo as `precomputed_positions.pt`. Download this file and the train and test data into the `data` folder in the root directory.
