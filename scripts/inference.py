@@ -36,7 +36,7 @@ def main(checkpoint_path: str, split: str = "test", sample_n: int = None):
     ).to(device)
 
     # Load weights
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     # if you saved a full state dict:
     model = nn.DataParallel(model)
     model.load_state_dict(checkpoint["model_state_dict"])

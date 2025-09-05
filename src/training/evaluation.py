@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 def is_min_predicted(true_labels, pred_labels):
     """
@@ -61,7 +61,7 @@ def test_model(
             label_masks = label_masks.to(device)      # [B, L]
 
             # Forward pass under autocast
-            with autocast():
+            with autocast('cuda'):
                 preds = model(inputs, pos_enc, token_mask).squeeze()  # [B, L]
 
             outputs_all.append(preds.cpu())
