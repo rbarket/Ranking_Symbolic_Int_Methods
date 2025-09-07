@@ -157,6 +157,9 @@ print("train length after merge:", len(df_train))
 # Remove label lookup
 df_train['label_original'] = df_train['label_original'].apply(lambda arr: np.delete(arr, 10))
 df_test['label_original'] = df_test['label_original'].apply(lambda arr: np.delete(arr, 10))
+
+# Glitch when labelled data produces an error and removes its labels: delete from dataset
+df_train = df_train[df_train['label_original'].apply(lambda x: len(x) == 12)]
 print("Removed lookup")
 
 # replace all integers in prefix with a CONST. Remove duplicates after this substitution
