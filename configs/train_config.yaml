@@ -6,15 +6,16 @@ model:
   d_model: 40            # hidden dimension (n * k)
   layers: 4              # number of transformer layers (LAYERS)
   heads: 4               # number of attention heads (HEADS)
-  dim_feedforward: 128  # for transformerencoder
+  dim_feedforward: 128   # for transformerencoder
 
 training:
   learning_rate: 0.01    # lr
   batch_size: 256        # BATCH_SIZE
-  epochs: 10            # num_epochs
-  weight_decay: 1e-6      # weight decay for optimizer
-  log_interval: 25  # how often to log training progress
-  resume_from: null   # resume training from a checkpoint path, or null to start fresh
+  epochs: 10             # num_epochs
+  weight_decay: 1e-6     # weight decay for optimizer
+  log_interval: 10       # how often to log training progress
+  resume_from: null      # resume training from a checkpoint path, or null to start fresh
+  n: null                # number of samples to use during training; null = use all
 
 device: "cuda"           # use 'cuda' if available, else fallback to 'cpu'
 

@@ -36,6 +36,8 @@ def parse_args():
                    help="auto | cpu | cuda | cuda:{idx}")
     p.add_argument("--data_parallel", action="store_true",
                    help="Use DataParallel when multiple GPUs are available (off by default).")
+    p.add_argument("--n", type=int, default=None,
+                   help="Number of training samples to use (overrides config.training.n if set).")
     return p.parse_args()
 
 
@@ -63,8 +65,9 @@ def main():
 
     # 3) Dataloaders
     # (get_dataloader internally uses cfg; pin_memory/num_workers should be fine for CPU/GPU)
-    train_loader = get_dataloader(cfg, split="train", sample_n=10000)
-    val_loader   = get_dataloader(cfg, split="test")
+    sample_n = args.n if args.n is not None else getattr(cfg.training, "n", None)
+    train_loader = get_dataloader(cfg, split="train", sample_n=sample_n)
+    val_loader = get_dataloader(cfg, split="test") # TODO: need to divide out some data for val, instead of using test
 
     # 4) Model
     vocab = load_vocab(cfg)
@@ -85,9 +88,9 @@ def main():
 
     model = model.to(device)
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
-
+    print(f"Train dataset size: {len(train_loader.dataset)}")
     # 5) Optimizer / Scheduler / Loss
-    print("weight decay:", cfg.training.weight_decay)
+
     optimizer = optim.Adam(
         model.parameters(),
         lr=cfg.training.learning_rate,
