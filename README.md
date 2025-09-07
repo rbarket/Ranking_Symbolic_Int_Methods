@@ -1,6 +1,13 @@
 # Tree-Based Deep learning for Ranking Symbolic Integration Algorithms
 Pytorch implementation of Tree-Based Deep Learning to Rank Symbolic Integration Algorithms in Maple
 
+## Requirements
+The exact conda environment used for training and inference can be recreated by running the command `conda env create -f environment.yml` at the top level of this project directory. We used CUDA 12.1 and the GPU version of PyTorch to train the model. In general, if you wish to create your own environment, you need the following packages:
+ - pytorch
+ - pandas
+ - pyarrow (format data is stored in)
+ - pyyaml (for config.py) 
+
 ## Data
 The preprocessed data is available on Zenodo, ready to use right away for machine learning training. Download the data here: [Zenodo](https://zenodo.org/records/16752399). It is split between train and test, and furthermore between elementary and non-elementary expressions. We train on a mix of both, but the post-training analysis can be done split if you wish to see the results between elementary and non-elementary expressions. Note that for the tree tranformer, we precomputed the positional encodings to significantly save time, and is saved in Zenodo as `precomputed_positions.pt`. Download this file and the train and test data into the `data` folder in the root directory.
 
