@@ -28,7 +28,6 @@ dependencies:
   - ca-certificates=2025.8.3
   - gflags=2.2.2
   - glog=0.7.1
-  - keyutils=1.6.3
   - krb5=1.21.3
   - ld_impl_linux-64=2.44
   - libabseil=20250512.1
