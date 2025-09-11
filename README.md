@@ -1,5 +1,5 @@
 # Tree-Based Deep learning for Ranking Symbolic Integration Algorithms
-Pytorch implementation of Tree-Based Deep Learning to Rank Symbolic Integration Algorithms in Maple, available on [arxiv](https://www.arxiv.org/abs/2508.06383)
+Pytorch implementation of Tree-Based Deep Learning to Rank Symbolic Integration Algorithms in Maple, available on [arxiv](https://www.arxiv.org/abs/2508.06383).
 
 Please see the [example notebook](predict_method_example.ipynb) for an example of how this model will make a prediction of which method to use in Maple given an integrand!
 
