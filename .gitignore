@@ -23,3 +23,6 @@ venv/
 data/raw/
 data/interim/
 data/processed/
+
+# ignore c++
+cpp_/load?model

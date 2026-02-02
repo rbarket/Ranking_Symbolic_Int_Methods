@@ -1,3 +1,4 @@
+import inspect
 import torch
 import torch.nn as nn
 
@@ -32,7 +33,10 @@ class TreeTransformer(nn.Module):
             activation=activation,
             batch_first=True,
         )
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        encoder_kwargs = {}
+        if "enable_nested_tensor" in inspect.signature(nn.TransformerEncoder).parameters:
+            encoder_kwargs["enable_nested_tensor"] = False  # disable nested tensors for ONNX export
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers, **encoder_kwargs)
 
         # Regression head
         self.classifier = nn.Linear(d_model, num_labels)
@@ -41,6 +45,11 @@ class TreeTransformer(nn.Module):
 
         # Learnable scaling parameter
         self.p = nn.Parameter(torch.tensor(0.9))
+        # Precomputed sqrt((n*k)/2) to avoid recreating a tensor each forward
+        self.register_buffer(
+            "scaling_const_base",
+            torch.sqrt(torch.tensor((n * k) / 2.0, dtype=torch.float32))
+        )
 
     def forward(
         self,
@@ -64,9 +73,7 @@ class TreeTransformer(nn.Module):
         norm_factor = torch.sqrt(1 - p_eff ** 2 + 1e-12)      # tiny eps for numerical safety
 
         # scaling_const = sqrt((n*k)/2)
-        scaling_const = torch.sqrt(
-            torch.tensor((self.n * self.k) / 2.0, device=embeddings.device, dtype=embeddings.dtype)
-        )
+        scaling_const = self.scaling_const_base.to(device=embeddings.device, dtype=embeddings.dtype)
 
         # Repeat each p^j "n" times to reach d_model = n*k
         scaling_vector = p_vals.repeat_interleave(self.n) * norm_factor * scaling_const  # [d_model]
@@ -92,3 +99,27 @@ class TreeTransformer(nn.Module):
             logits = logits * label_mask.float()
 
         return logits
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        # Backward compatibility: older checkpoints won't have the scaling_const_base buffer.
+        key = prefix + "scaling_const_base"
+        if key not in state_dict:
+            state_dict[key] = self.scaling_const_base
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
