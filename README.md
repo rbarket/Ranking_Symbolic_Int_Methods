@@ -11,14 +11,45 @@ The exact conda environment used for training and inference can be recreated by 
  - pyyaml (for config.py) 
 
 ## Data
-The preprocessed data is available on Zenodo, ready to use right away for machine learning training. Download the data here: [Zenodo](https://zenodo.org/records/16754656). It is split between train and test, and contains both elementary and nonelementary functions. We train on a mix of both, but the post-training inference will show results for individual and combined types/ Note that for the tree tranformer, we precomputed the positional encodings to significantly save time, and is saved in Zenodo as `precomputed_positions.pt`. Download this file and the train and test data into the [data/processed](data/processed) folder in the root directory.
+The preprocessed data is available on [Zenodo](https://zenodo.org/records/16754656) and is not stored in this repository. Download the Airy-inclusive `train_data.parquet` and `test_data.parquet` files into [data/processed/airy](data/processed/airy). Download `precomputed_positions.pt` into [data](data); it is required only by TreeTransformer. The superseded non-Airy splits may be retained in [data/processed/old](data/processed/old).
+
+The committed vocabulary matches the Airy-inclusive dataset. To regenerate it deterministically after replacing the dataset, run `python -m scripts.create_vocab --config configs/train_tree_transformer_config.yaml`.
 
 For the label column in the dataset, the value of each item in the list is the DAG sizes which correspond to the following method order: "default", "derivativedivides", "parts", "risch", "norman", "trager", "parallelrisch", "meijerg", "elliptic", "pseudoelliptic", "lookup", "gosper", "orering". To see these sub-methods that `int` calls in Maple, see the [help page](https://www.maplesoft.com/support/help/maple/view.aspx?path=int%2fmethods). The DAG sizes were acquired by taking the integrand, running the integrand through Maple's `int` command with each available method, and then recording the DAG size of the output.
 
 ## Training
-The main script to produce a trained model is in [scripts/train.py](scripts/train.py). From the root of the project, this can be run with `python -m scripts.train`. All main configurations for any model hyperparameters can be found in [configs/train_configs.yaml](configs/train_configs.yaml). The parameters in this file were the ones used for the best saved model. You may change these parameters as you please. However, if changing the depth parameter to anything higher than what is currently listed in the config file (20 right now), then you need to precompute a new set of tree positional encodings. This can be done with running `python -m scripts.precompute_positions` after changing the config file.
+All models use the shared [training script](scripts/train.py). The architecture is selected by `model.type` in the YAML configuration. Supported values are `tree_transformer`, `transformer`, `lstm`, and `tree_lstm`. If `model.type` or `--config` is omitted, TreeTransformer is used by default.
 
-During training, the model will checkpoint after each epoch, as well as what the current best model is. If you wish to resume training, you must provide the path to the checkpointed model, otherwise the script will train from scratch. To resume training, either add the command `--resume_from path/to/model.pth` or provide the path in the parameter `resume_from` in the config file. Note that because we use use the OneCycleLR learning rate scheduler, the final number of epochs must not have changed from when you first started training the model (this can be fixed but is not part of this implementation).
+The provided configurations are:
 
-## Testing
-Once a model is trained, we can evaluate the model with [scripts/inference.py](scripts/inference.py) by running the command `python -m scripts.inference --checkpoint_path <PATH TO MODEL>.pth`. In `<PATH TO MODEL>`, you pass any model you wish to evaluate. This repository includes a trained model that produces the results in the paper, with path `models/ranking/ranking_best.pth`. This will produce the results for the exact matches in Figure 10(a) of the paper. The predictions are also saved in pytorch pt format for further analysis.  
+- `configs/train_tree_transformer_config.yaml`
+- `configs/train_transformer_config.yaml`
+- `configs/train_lstm_config.yaml`
+- `configs/train_tree_lstm_config.yaml` (requires the DGL environment)
+
+Run training from the project root, for example:
+
+```bash
+# Default: TreeTransformer
+python -m scripts.train
+
+# Select another model through its configuration
+python -m scripts.train --config configs/train_transformer_config.yaml
+```
+
+Common overrides include `--epochs`, `--n`, `--eval_n`, `--device`, and `--save_dir`. TreeTransformer depth changes beyond the precomputed range require regenerating positions with `python -m scripts.precompute_positions`.
+
+Training saves a latest checkpoint as `<experiment_name>.pth` and the best validation checkpoint as `<experiment_name>_best.pth`. Resume from the latest checkpoint with `python -m scripts.train --resume_from path/to/model.pth --epochs 10`. Here, `--epochs` is the total target: an epoch-3 checkpoint resumes at epoch 4 and trains through epoch 10. New checkpoints contain their configuration and vocabulary, so no YAML is required when resuming. Legacy checkpoints still require their matching `--config`.
+
+## Inference
+Run inference on any of the four models with:
+
+```bash
+python -m scripts.inference \
+  --checkpoint_path path/to/model_best.pth \
+  --split test
+```
+
+For new checkpoints, the model type, hyperparameters, and vocabulary are loaded directly from the checkpoint. Use `--config` only for a legacy checkpoint. Optional arguments include `--sample_n`, `--device`, `--batch_size`, `--num_workers`, and `--output_dir`. Inference saves aligned predictions and overall, source, and complexity metrics beside the checkpoint by default.
+
+TreeLSTM training and inference must be run in the `TreeLSTM_DGL` environment. TreeLSTM does not support the current `--data_parallel` path.
