@@ -1,0 +1,31 @@
+experiment_name: "tree_lstm_50k"
+
+model:
+  type: tree_lstm
+  d_model: 40
+  hidden_size: 40
+  dropout: 0.1
+
+training:
+  learning_rate: 0.01
+  batch_size: 256
+  epochs: 3
+  weight_decay: 1e-6
+  log_interval: 10
+  resume_from: null
+  n: 50000
+  eval_n: 5000
+  seed: 1998
+  validation_fraction: 0.1
+  split_seed: 1998
+
+device: "cuda"
+
+data:
+  input_dir: "data/processed/airy"
+  vocab_path: "data/vocab.json"
+  # DGL 1.1.2 graph objects must be built in the main process before CUDA transfer.
+  num_workers: 0
+
+paths:
+  save_dir: "models/ranking/comparison_50k/tree_lstm"

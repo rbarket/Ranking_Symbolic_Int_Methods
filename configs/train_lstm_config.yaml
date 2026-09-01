@@ -1,0 +1,30 @@
+experiment_name: "lstm_50k"
+
+model:
+  type: lstm
+  d_model: 40
+  layers: 4
+  dropout: 0.1
+
+training:
+  learning_rate: 0.01
+  batch_size: 256
+  epochs: 3
+  weight_decay: 1e-6
+  log_interval: 10
+  resume_from: null
+  n: 50000
+  eval_n: 5000
+  seed: 1998
+  validation_fraction: 0.1
+  split_seed: 1998
+
+device: "cuda"
+
+data:
+  input_dir: "data/processed/airy"
+  vocab_path: "data/vocab.json"
+  num_workers: 4
+
+paths:
+  save_dir: "models/ranking/comparison_50k/lstm"

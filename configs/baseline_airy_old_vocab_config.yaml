@@ -1,0 +1,29 @@
+tree:
+  branching_factor: 2
+  depth: 20
+
+model:
+  type: tree_transformer
+  d_model: 40
+  layers: 4
+  heads: 4
+  dim_feedforward: 128
+
+training:
+  learning_rate: 0.01
+  batch_size: 256
+  epochs: 10
+  weight_decay: 1e-6
+  log_interval: 10
+  resume_from: null
+  n: null
+
+device: "cuda"
+
+data:
+  input_dir: "data/processed/airy"
+  vocab_path: "data/vocab_old.json"
+  num_workers: 4
+
+paths:
+  save_dir: "models/ranking"

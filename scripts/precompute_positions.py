@@ -5,7 +5,7 @@ from src.utils.tree_utils import push_down, precompute_all_positions, save_preco
 
 def main():
     # Load config
-    cfg = load_config("configs/train_config.yaml")
+    cfg = load_config("configs/train_tree_transformer_config.yaml")
     n = cfg.tree.branching_factor
     k = cfg.tree.depth
 

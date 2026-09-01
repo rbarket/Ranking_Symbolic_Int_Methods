@@ -1,28 +1,37 @@
+experiment_name: "tree_transformer_50k"
+
 tree:
   branching_factor: 2    # n: branching factor
   depth: 20              # k: tree depth
 
 model:
+  type: tree_transformer
   d_model: 40            # hidden dimension (n * k)
   layers: 4              # number of transformer layers (LAYERS)
   heads: 4               # number of attention heads (HEADS)
   dim_feedforward: 128   # for transformerencoder
+  dropout: 0.1
+  activation: gelu
 
 training:
   learning_rate: 0.01    # lr
   batch_size: 256        # BATCH_SIZE
-  epochs: 10             # num_epochs
+  epochs: 3              # controlled medium-scale comparison
   weight_decay: 1e-6     # weight decay for optimizer
   log_interval: 10       # how often to log training progress
   resume_from: null      # resume training from a checkpoint path, or null to start fresh
-  n: null                # number of samples to use during training; null = use all
+  n: 50000               # comparison training subset
+  eval_n: 5000           # comparison validation and test subsets
+  seed: 1998             # model initialization and dataloader order
+  validation_fraction: 0.1
+  split_seed: 1998
 
 device: "cuda"           # use 'cuda' if available, else fallback to 'cpu'
 
 data:
-  input_dir: "data/processed"
+  input_dir: "data/processed/airy"
   vocab_path: "data/vocab.json"
   num_workers: 4
 
 paths:
-  save_dir: "models/ranking/"
+  save_dir: "models/ranking/comparison_50k/tree_transformer"
