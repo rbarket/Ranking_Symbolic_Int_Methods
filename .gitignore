@@ -24,5 +24,14 @@ data/raw/
 data/interim/
 data/processed/
 
-# ignore c++
-cpp_/load?model
+# Generated training and evaluation artifacts
+logs/
+models/ranking/comparison_50k/
+reports/model_comparison_50k.csv
+reports/model_comparison_50k.md
+
+# ONNX and C++ deployment code lives in a separate repository
+scripts/export_onnx.py
+cpp_load_model/
+*.onnx
+*.onnx.data
